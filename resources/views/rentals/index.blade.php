@@ -85,13 +85,42 @@
     @include('rentals.create_modal')
 
 @endsection
-
 <!-- Script Khusus Halaman Ini -->
 @push('scripts')
 <script>
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const modal = document.getElementById('rentalModal');
 
+    // Fungsi untuk mendapatkan token dari API Login
+    async function getApiToken() {
+        // Cek apakah token sudah ada di memori browser
+        let token = localStorage.getItem('warnet_token');
+        if (token) return token;
+
+        // Jika belum ada, login otomatis di belakang layar
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                email: 'admin@warnet.com',
+                password: 'password123'
+            })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            localStorage.setItem('warnet_token', data.token);
+            return data.token;
+        } else {
+            Swal.fire('Error', 'Gagal login otomatis ke API', 'error');
+            return null;
+        }
+    }
+
+    // Fungsi Buka/Tutup Modal (Sama seperti sebelumnya)
     function openModal() {
         modal.classList.remove('hidden');
         document.getElementById('modalContent').classList.remove('scale-95');
@@ -107,9 +136,11 @@
         }, 200);
     }
 
-    // Handle Form Submit (POST)
-    document.getElementById('createForm').addEventListener('submit', function(e) {
+    // Handle Form Submit (POST) dengan Token
+    document.getElementById('createForm').addEventListener('submit', async function(e) {
         e.preventDefault();
+        const token = await getApiToken(); // Ambil token dulu
+
         const data = {
             customer_id: document.getElementById('customer_id').value,
             computer_id: document.getElementById('computer_id').value,
@@ -121,6 +152,7 @@
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`, // <-- Tambahkan Header Token
                 'X-CSRF-TOKEN': csrfToken
             },
             body: JSON.stringify(data)
@@ -137,8 +169,8 @@
         .catch(error => Swal.fire('Error!', 'Tidak dapat terhubung ke server.', 'error'));
     });
 
-    // Handle Delete (DELETE)
-    function deleteRental(id) {
+    // Handle Delete (DELETE) dengan Token
+    async function deleteRental(id) {
         Swal.fire({
             title: 'Apakah kamu yakin?',
             text: "Data transaksi ini akan dihapus permanen!",
@@ -148,13 +180,16 @@
             cancelButtonColor: '#3085d6',
             confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal'
-        }).then((result) => {
+        }).then(async (result) => {
             if (result.isConfirmed) {
+                const token = await getApiToken(); // Ambil token dulu
+
                 fetch(`/api/rentals/${id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
+                        'Authorization': `Bearer ${token}`, // <-- Tambahkan Header Token
                         'X-CSRF-TOKEN': csrfToken
                     }
                 }).then(response => {

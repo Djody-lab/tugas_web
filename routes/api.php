@@ -3,24 +3,28 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\RentalController;
+use App\Http\Controllers\AuthController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Di sini adalah tempat mendaftarkan route untuk aplikasi kamu.
-| Route di sini otomatis memiliki prefix "/api".
-|
-*/
+// --- ROUTE PUBLIK (Tanpa Token) ---
+Route::post('/login', [AuthController::class, 'login']);
 
-// Route bawaan Laravel (boleh dibiarkan)
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+Route::get('/rentals', [RentalController::class, 'index']);
+Route::get('/rentals/{id}', [RentalController::class, 'show']);
 
-// --- ROUTE CRUD TUGAS KELOMPOK (WARNET) ---
+// --- ROUTE TERLINDUNGI (Wajib Bearer Token) ---
+Route::middleware('auth:sanctum')->group(function () {
+    // Bisa diakses semua yang sudah login (Admin & Kasir)
+    Route::post('/rentals', [RentalController::class, 'store']);
+    Route::put('/rentals/{id}', [RentalController::class, 'update']);
 
-// Satu baris ini otomatis membuat 5 route:
-// GET /rentals, POST /rentals, GET /rentals/{id}, PUT /rentals/{id}, DELETE /rentals/{id}
-Route::apiResource('rentals', RentalController::class);
+    // Endpoint Auth
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+
+    // KHUSUS ADMIN (Middleware Otorisasi)
+    Route::middleware('role:admin')->group(function () {
+        Route::delete('/rentals/{id}', [RentalController::class, 'destroy']);
+    });
+});
